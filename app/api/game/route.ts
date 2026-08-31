@@ -89,7 +89,7 @@ export async function DELETE(request: NextRequest) {
   if (!id || !hostId) return NextResponse.json({ error: "id and hostId are required" }, { status: 400 });
   try {
     const game = await findRoom(id);
-    if (!game || game.hostId !== hostId || game.phase !== "finished") return NextResponse.json({ error: "Room cannot be deleted" }, { status: 403 });
+    if (!game || game.hostId !== hostId || !["lobby", "finished"].includes(game.phase)) return NextResponse.json({ error: "Room cannot be deleted" }, { status: 403 });
     const response = await fetch(`${url}/rest/v1/rooms?id=eq.${encodeURIComponent(id)}`, { method: "DELETE", headers: headers() });
     if (!response.ok) return NextResponse.json({ error: "Unable to delete room" }, { status: response.status });
     return NextResponse.json({ ok: true });
