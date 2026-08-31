@@ -4,7 +4,7 @@ const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const headers = () => ({ apikey: key!, authorization: `Bearer ${key!}`, "content-type": "application/json" });
 
-type GameState = { id: string; hostId: string; judgingMode: string; phase: string; players: Array<{ id: string; score?: number; active?: boolean }>; rounds: Array<{ number: number; prompt: string; artworks: Array<{ playerId: string; image?: string; votes?: number; [key: string]: unknown }>; [key: string]: unknown }>; promptIndex: number; roundStartsAt?: string; roundEndsAt?: string; [key: string]: unknown };
+type GameState = { id: string; hostId: string; judgingMode: string; phase: string; players: Array<{ id: string; score?: number; active?: boolean }>; rounds: Array<{ number: number; prompt: string; artworks: Array<{ playerId: string; image?: string; votes?: number; [key: string]: unknown }>; [key: string]: unknown }>; promptIndex: number; roundStartsAt?: string; roundEndsAt?: string; updatedAt?: string; [key: string]: unknown };
 const phaseOrder: Record<string, number> = { lobby: 0, drawing: 1, voting: 2, results: 3, finished: 4 };
 const blankImage = "data:image/svg+xml,%3Csvg";
 
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id");
   if (!url || !key) return NextResponse.json({ error: "Supabase is not configured" }, { status: 503 });
   if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
-  try { const game = await findRoom(id); return game ? NextResponse.json({ game }) : NextResponse.json({ error: "Room not found" }, { status: 404 }); }
+  try { const game = await findRoom(id); if (!game) return NextResponse.json({ error: "Room not found" }, { status: 404 }); const since = request.nextUrl.searchParams.get("since"); if (since && game.updatedAt === since) return new NextResponse(null, { status: 204 }); return NextResponse.json({ game }); }
   catch { return NextResponse.json({ error: "Unable to load room" }, { status: 502 }); }
 }
 
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
   if (!incoming?.id || !incoming?.hostId || !incoming?.judgingMode) return NextResponse.json({ error: "Invalid game" }, { status: 400 });
   try {
     const current = await findRoom(incoming.id);
-    const game = finalizePlayerVote(current ? mergeGame(current, incoming) : incoming);
+    const game = { ...finalizePlayerVote(current ? mergeGame(current, incoming) : incoming), updatedAt: new Date().toISOString() };
     const row = { id: game.id, host_token: game.hostId, judging_mode: game.judgingMode, phase: game.phase, current_round: game.rounds?.length ?? 0, prompts: game.rounds?.map(round => round.prompt) ?? [], state: game };
     const response = await fetch(`${url}/rest/v1/rooms?on_conflict=id`, { method: "POST", headers: { ...headers(), Prefer: "resolution=merge-duplicates,return=representation" }, body: JSON.stringify(row) });
     if (!response.ok) return NextResponse.json({ error: "Unable to save room" }, { status: response.status });

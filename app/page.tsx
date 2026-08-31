@@ -11,7 +11,7 @@ function loadGame(): Game | null { try { const raw = localStorage.getItem(STORAG
 function persist(game: Game) { localStorage.setItem(STORAGE, JSON.stringify(game)); }
 function makeRoomCode() { const value = new Uint32Array(1); crypto.getRandomValues(value); return String(10000 + (value[0] % 90000)); }
 function makeRoundSchedule(seconds: number) { const start = Date.now() + 3500; return { roundStartsAt: new Date(start).toISOString(), roundEndsAt: new Date(start + seconds * 1000).toISOString() }; }
-async function fetchRoom(id: string): Promise<Game | null> { const response = await fetch(`/api/game?id=${encodeURIComponent(id)}`, { cache: "no-store" }); if (!response.ok) return null; return (await response.json()).game as Game; }
+async function fetchRoom(id: string, since?: string): Promise<Game | null> { const query = new URLSearchParams({ id }); if (since) query.set("since", since); const response = await fetch(`/api/game?${query.toString()}`, { cache: "no-store" }); if (response.status === 204 || !response.ok) return null; return (await response.json()).game as Game; }
 
 function useLiveDrawings(game: Game | null, me: string) {
   const [events, setEvents] = useState<DrawEvent[]>([]);
@@ -103,8 +103,10 @@ function SetupScreen({ onCreate, onJoin }: { onCreate: (setup: Setup) => void; o
 
 export default function Home() {
   const [game, setGame] = useState<Game | null>(null); const [me, setMe] = useState<string>(""); const [clock, setClock] = useState(() => Date.now()); const [notice, setNotice] = useState(""); const [voteMessage, setVoteMessage] = useState("");
+  const gameRef = useRef<Game | null>(null); const savingRef = useRef(false); const latestSaveRef = useRef(0);
+  useEffect(() => { gameRef.current = game; }, [game]);
   const { events: liveEvents, send: sendDrawEvent, status: liveStatus } = useLiveDrawings(game, me);
-  const save = useCallback((next: Game) => { setGame(next); persist(next); void fetch("/api/game", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(next) }); }, []);
+  const save = useCallback((next: Game) => { setGame(next); persist(next); const requestId = ++latestSaveRef.current; savingRef.current = true; void fetch("/api/game", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(next) }).then(async response => { if (!response.ok) return; const body = await response.json() as { game?: Game }; if (requestId === latestSaveRef.current && body.game) { setGame(body.game); persist(body.game); } }).finally(() => { if (requestId === latestSaveRef.current) savingRef.current = false; }); }, []);
   useEffect(() => {
     const fromUrl = new URLSearchParams(window.location.search).get("room");
     // The root URL is always a fresh start. Restore a game only when the user
@@ -114,7 +116,7 @@ export default function Home() {
     if (existing?.id === fromUrl) { setGame(existing); setMe(localStorage.getItem("art-battle:me") || existing.hostId); }
     void fetchRoom(fromUrl).then(remote => { if (remote) { setGame(remote); setMe(localStorage.getItem("art-battle:me") || remote.hostId); } });
   }, []);
-  useEffect(() => { if (!game) return; const timer = window.setInterval(() => void fetchRoom(game.id).then(remote => { if (remote && JSON.stringify(remote) !== JSON.stringify(game)) setGame(remote); }), 500); return () => clearInterval(timer); }, [game]);
+  useEffect(() => { if (!game?.id) return; let cancelled = false; let timeout = 0; const poll = async () => { try { if (!savingRef.current) { const remote = await fetchRoom(game.id, gameRef.current?.updatedAt); if (remote) { setGame(remote); persist(remote); } } } finally { if (!cancelled) timeout = window.setTimeout(poll, 1000); } }; void poll(); return () => { cancelled = true; window.clearTimeout(timeout); }; }, [game?.id]);
   useEffect(() => { if (!game || game.phase !== "drawing") return; const timer = window.setInterval(() => setClock(Date.now()), 250); return () => clearInterval(timer); }, [game?.phase]);
   const waitingToStart = game?.phase === "drawing" && !!game.roundStartsAt && clock < new Date(game.roundStartsAt).getTime();
   const seconds = game?.phase === "drawing" && game.roundEndsAt ? (waitingToStart ? game.roundSeconds : Math.max(0, Math.ceil((new Date(game.roundEndsAt).getTime() - clock) / 1000))) : 0;
