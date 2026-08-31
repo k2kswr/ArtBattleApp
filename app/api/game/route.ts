@@ -53,7 +53,7 @@ function finalizePlayerVote(game: GameState): GameState {
     return { ...art, rank, points: rank === 1 ? 5 : rank === 2 ? 3 : rank === 3 ? 1 : 0 };
   });
   const scoreByPlayer = new Map(ranked.map(art => [art.playerId, Number(art.points ?? 0)]));
-  return { ...game, phase: round.number === 5 ? "finished" : "results", players: game.players.map(player => ({ ...player, score: Number(player.score ?? 0) + (scoreByPlayer.get(player.id) ?? 0) })), rounds: [...game.rounds.slice(0, -1), { ...round, artworks: ranked }] };
+  return { ...game, phase: round.number === Number(game.totalRounds ?? 5) ? "finished" : "results", players: game.players.map(player => ({ ...player, score: Number(player.score ?? 0) + (scoreByPlayer.get(player.id) ?? 0) })), rounds: [...game.rounds.slice(0, -1), { ...round, artworks: ranked }] };
 }
 async function findRoom(id: string) {
   const response = await fetch(`${url}/rest/v1/rooms?id=eq.${encodeURIComponent(id)}&select=state`, { headers: headers(), cache: "no-store" });

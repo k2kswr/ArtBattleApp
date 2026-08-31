@@ -24,6 +24,7 @@ type Setup = {
   name: string;
   mode: JudgingMode;
   roundSeconds: 10 | 30 | 90 | 180;
+  totalRounds: 1 | 3 | 5 | 10;
 };
 
 function loadGame(): Game | null {
@@ -42,6 +43,7 @@ function makeRoomCode() {
   crypto.getRandomValues(value);
   return String(10000 + (value[0] % 90000));
 }
+function makePromptDeck(count: number) { const deck = [...PROMPTS]; for (let index = deck.length - 1; index > 0; index -= 1) { const swap = crypto.getRandomValues(new Uint32Array(1))[0] % (index + 1); [deck[index], deck[swap]] = [deck[swap], deck[index]]; } return deck.slice(0, count); }
 function makeRoundSchedule(seconds: number) {
   const start = Date.now() + 3500;
   return {
@@ -384,6 +386,7 @@ function SetupScreen({
   const [name, setName] = useState("");
   const [mode, setMode] = useState<JudgingMode>("player_vote");
   const [roundSeconds, setRoundSeconds] = useState<10 | 30 | 90 | 180>(90);
+  const [totalRounds, setTotalRounds] = useState<1 | 3 | 5 | 10>(5);
   const [room, setRoom] = useState("");
   return (
     <main className="landing">
@@ -434,10 +437,21 @@ function SetupScreen({
             </button>
           ))}
         </div>
-        <button
+        <p className="eyebrow">ラウンド数をえらぶ</p>
+        <div className="time-grid">
+          {([1, 3, 5, 10] as const).map((count) => (
+            <button
+              key={count}
+              className={totalRounds === count ? "time chosen" : "time"}
+              onClick={() => setTotalRounds(count)}
+            >
+              {count}ラウンド
+            </button>
+          ))}
+        </div>        <button
           className="primary"
           disabled={!name.trim()}
-          onClick={() => onCreate({ name: name.trim(), mode, roundSeconds })}
+          onClick={() => onCreate({ name: name.trim(), mode, roundSeconds, totalRounds })}
         >
           ルームをつくる
         </button>
@@ -456,7 +470,7 @@ function SetupScreen({
           </button>
         </div>
       </section>
-      <p className="hint">1〜8人 / 5ラウンド / 10・30・90・180秒から選択</p>
+      <p className="hint">1〜8人 / 1・3・5・10ラウンド / 10・30・90・180秒から選択</p>
     </main>
   );
 }
@@ -566,6 +580,8 @@ export default function Home() {
       hostId: playerId,
       judgingMode: setup.mode,
       roundSeconds: setup.roundSeconds,
+      totalRounds: setup.totalRounds,
+      promptDeck: makePromptDeck(setup.totalRounds),
       phase: "lobby",
       players: [{ id: playerId, name: setup.name, score: 0, active: true }],
       rounds: [],
@@ -604,7 +620,7 @@ export default function Home() {
       ...game,
       roundSeconds: game.roundSeconds ?? 90,
       phase: "drawing" as const,
-      rounds: [{ number: 1, prompt: PROMPTS[game.promptIndex], artworks: [] }],
+      rounds: [{ number: 1, prompt: game.promptDeck?.[0] ?? PROMPTS[game.promptIndex], artworks: [] }],
       ...makeRoundSchedule(game.roundSeconds ?? 90),
     };
     save(next);
@@ -780,7 +796,7 @@ export default function Home() {
         ...game.rounds,
         {
           number,
-          prompt: PROMPTS[(game.promptIndex + 1) % PROMPTS.length],
+          prompt: game.promptDeck?.[number - 1] ?? PROMPTS[(game.promptIndex + 1) % PROMPTS.length],
           artworks: [],
         },
       ],
@@ -790,6 +806,7 @@ export default function Home() {
   const playAgain = () => {
     if (!game) return;
     const promptIndex = (game.promptIndex + 1) % PROMPTS.length;
+    const promptDeck = makePromptDeck(game.totalRounds ?? 5);
     const next = {
       ...game,
       phase: "drawing" as const,
@@ -799,7 +816,8 @@ export default function Home() {
         score: 0,
         active: true,
       })),
-      rounds: [{ number: 1, prompt: PROMPTS[promptIndex], artworks: [] }],
+      promptDeck,
+      rounds: [{ number: 1, prompt: promptDeck[0] ?? PROMPTS[promptIndex], artworks: [] }],
       ...makeRoundSchedule(game.roundSeconds ?? 90),
     };
     save(next);
@@ -903,7 +921,7 @@ export default function Home() {
         <section>
           <div className="round-head">
             <div>
-              <span>ROUND {round.number} / 5</span>
+              <span>ROUND {round.number} / {game.totalRounds ?? 5}</span>
               <h1>
                 お題: <em>{round.prompt}</em>
               </h1>
@@ -948,7 +966,7 @@ export default function Home() {
         <section className="vote">
           <div className="round-head">
             <div>
-              <span>ROUND {round.number} / 5</span>
+              <span>ROUND {round.number} / {game.totalRounds ?? 5}</span>
               <h1>
                 好きな絵に <em>1票</em>！
               </h1>
