@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getRealtimeClient, isDrawEvent, roomChannelName, type DrawEvent, type DrawPoint, type OutgoingDrawEvent, type RealtimeChannel } from "../lib/realtime";
 import { applyRoundScores, Game, JudgingMode, makeId, PROMPTS, rankArtworks } from "../lib/game";
 
 const STORAGE = "art-battle:game";
@@ -11,17 +12,87 @@ function persist(game: Game) { localStorage.setItem(STORAGE, JSON.stringify(game
 function makeRoomCode() { const value = new Uint32Array(1); crypto.getRandomValues(value); return String(10000 + (value[0] % 90000)); }
 async function fetchRoom(id: string): Promise<Game | null> { const response = await fetch(`/api/game?id=${encodeURIComponent(id)}`, { cache: "no-store" }); if (!response.ok) return null; return (await response.json()).game as Game; }
 
-function Canvas({ onSubmit, expired }: { onSubmit: (image: string) => void; expired: boolean }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null); const drawing = useRef(false);
+function useLiveDrawings(game: Game | null, me: string) {
+  const [events, setEvents] = useState<DrawEvent[]>([]);
+  const [status, setStatus] = useState<"ready" | "connecting" | "unavailable">("unavailable");
+  const channel = useRef<RealtimeChannel | null>(null);
+  const roomId = game?.id;
+  const roundNumber = game?.rounds.at(-1)?.number;
+  const participants = game?.players.filter(player => player.active).map(player => player.id).join(",") ?? "";
+
+  useEffect(() => {
+    setEvents([]);
+    channel.current = null;
+    if (!roomId || !roundNumber || game?.phase !== "drawing") { setStatus("unavailable"); return; }
+    const supabase = getRealtimeClient();
+    if (!supabase) { setStatus("unavailable"); return; }
+    const allowedPlayers = new Set(participants.split(",").filter(Boolean));
+    setStatus("connecting");
+    const nextChannel = supabase.channel(roomChannelName(roomId, roundNumber), { config: { broadcast: { self: false } } })
+      .on("broadcast", { event: "draw" }, ({ payload }) => {
+        if (!isDrawEvent(payload) || payload.playerId === me || !allowedPlayers.has(payload.playerId)) return;
+        setEvents(previous => [...previous, payload]);
+      })
+      .subscribe(subscriptionStatus => setStatus(subscriptionStatus === "SUBSCRIBED" ? "ready" : "connecting"));
+    channel.current = nextChannel;
+    return () => { channel.current = null; void supabase.removeChannel(nextChannel); };
+  }, [game?.phase, me, participants, roomId, roundNumber]);
+
+  const send = useCallback((event: OutgoingDrawEvent) => {
+    if (!channel.current) return;
+    void channel.current.send({ type: "broadcast", event: "draw", payload: { ...event, playerId: me } });
+  }, [me]);
+
+  return { events, send, status };
+}
+
+function drawSegment(context: CanvasRenderingContext2D, from: DrawPoint, to: DrawPoint, color: string, size: number) {
+  context.strokeStyle = color; context.lineWidth = size; context.lineCap = "round"; context.lineJoin = "round";
+  context.beginPath(); context.moveTo(from.x, from.y); context.lineTo(to.x, to.y); context.stroke();
+}
+
+function Canvas({ onSubmit, onDraw, expired }: { onSubmit: (image: string) => void; onDraw: (event: OutgoingDrawEvent) => void; expired: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null); const drawing = useRef(false); const lastPoint = useRef<DrawPoint | null>(null);
   const submitted = useRef(false);
   const [color, setColor] = useState("#2D1965"); const [size, setSize] = useState(8); const [eraser, setEraser] = useState(false);
-  const point = (event: React.PointerEvent<HTMLCanvasElement>) => { const box = event.currentTarget.getBoundingClientRect(); return { x: (event.clientX - box.left) * (event.currentTarget.width / box.width), y: (event.clientY - box.top) * (event.currentTarget.height / box.height) }; };
-  const stroke = (event: React.PointerEvent<HTMLCanvasElement>, start = false) => { const canvas = canvasRef.current; if (!canvas || (!drawing.current && !start)) return; const ctx = canvas.getContext("2d")!; const p = point(event); ctx.strokeStyle = eraser ? "#fffdf8" : color; ctx.lineWidth = eraser ? size * 3 : size; ctx.lineCap = "round"; ctx.lineJoin = "round"; if (start) { ctx.beginPath(); ctx.moveTo(p.x, p.y); } else { ctx.lineTo(p.x, p.y); ctx.stroke(); } };
-  const clear = () => { const canvas = canvasRef.current!; const ctx = canvas.getContext("2d")!; ctx.fillStyle = "#fffdf8"; ctx.fillRect(0, 0, canvas.width, canvas.height); };
-  useEffect(() => { clear(); }, []);
+  const point = (event: React.PointerEvent<HTMLCanvasElement>): DrawPoint => { const box = event.currentTarget.getBoundingClientRect(); return { x: (event.clientX - box.left) * (event.currentTarget.width / box.width), y: (event.clientY - box.top) * (event.currentTarget.height / box.height) }; };
+  const paint = (event: React.PointerEvent<HTMLCanvasElement>, start = false) => {
+    const canvas = canvasRef.current; if (!canvas || expired || (!drawing.current && !start)) return;
+    const nextPoint = point(event);
+    if (start) { lastPoint.current = nextPoint; return; }
+    const previousPoint = lastPoint.current; if (!previousPoint) { lastPoint.current = nextPoint; return; }
+    const strokeColor = eraser ? "#fffdf8" : color; const strokeSize = eraser ? size * 3 : size;
+    drawSegment(canvas.getContext("2d")!, previousPoint, nextPoint, strokeColor, strokeSize);
+    onDraw({ type: "stroke", from: previousPoint, to: nextPoint, color: strokeColor, size: strokeSize });
+    lastPoint.current = nextPoint;
+  };
+  const clear = () => { const canvas = canvasRef.current; if (!canvas) return; const ctx = canvas.getContext("2d")!; ctx.fillStyle = "#fffdf8"; ctx.fillRect(0, 0, canvas.width, canvas.height); onDraw({ type: "clear" }); };
+  const reset = () => { const canvas = canvasRef.current; if (!canvas) return; const ctx = canvas.getContext("2d")!; ctx.fillStyle = "#fffdf8"; ctx.fillRect(0, 0, canvas.width, canvas.height); };
+  useEffect(() => { reset(); }, []);
   const submit = () => { if (submitted.current || !canvasRef.current) return; submitted.current = true; onSubmit(canvasRef.current.toDataURL("image/png")); };
   useEffect(() => { if (expired) submit(); }, [expired]);
-  return <div className="canvas-wrap"><div className="toolbox"><label>色 <input aria-label="ペンの色" type="color" value={color} onChange={e => { setColor(e.target.value); setEraser(false); }} /></label><label>太さ <input aria-label="ペンの太さ" type="range" min="2" max="24" value={size} onChange={e => setSize(+e.target.value)} /></label><button className={eraser ? "active" : ""} onClick={() => setEraser(!eraser)}>消しゴム</button><button onClick={clear}>全部消す</button></div><canvas ref={canvasRef} width={900} height={620} onPointerDown={e => { drawing.current = true; e.currentTarget.setPointerCapture(e.pointerId); stroke(e, true); }} onPointerMove={e => stroke(e)} onPointerUp={() => { drawing.current = false; }} onPointerLeave={() => { drawing.current = false; }} /><button className="submit" onClick={submit}>この絵で提出する →</button></div>;
+  const stopDrawing = () => { drawing.current = false; lastPoint.current = null; };
+  return <div className="canvas-wrap"><div className="toolbox"><label>色 <input aria-label="ペンの色" type="color" value={color} onChange={e => { setColor(e.target.value); setEraser(false); }} /></label><label>太さ <input aria-label="ペンの太さ" type="range" min="2" max="24" value={size} onChange={e => setSize(+e.target.value)} /></label><button className={eraser ? "active" : ""} onClick={() => setEraser(!eraser)}>消しゴム</button><button onClick={clear}>全部消す</button></div><canvas ref={canvasRef} width={900} height={620} onPointerDown={e => { if (expired) return; drawing.current = true; e.currentTarget.setPointerCapture(e.pointerId); paint(e, true); }} onPointerMove={e => paint(e)} onPointerUp={stopDrawing} onPointerCancel={stopDrawing} onPointerLeave={stopDrawing} /><button className="submit" onClick={submit}>この絵で提出する →</button></div>;
+}
+
+function LivePreview({ name, events }: { name: string; events: DrawEvent[] }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null); const applied = useRef(0);
+  useEffect(() => { const canvas = canvasRef.current; if (!canvas) return; const ctx = canvas.getContext("2d")!; ctx.fillStyle = "#fffdf8"; ctx.fillRect(0, 0, canvas.width, canvas.height); }, []);
+  useEffect(() => {
+    const canvas = canvasRef.current; if (!canvas) return; const ctx = canvas.getContext("2d")!;
+    for (const event of events.slice(applied.current)) {
+      if (event.type === "clear") { ctx.fillStyle = "#fffdf8"; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+      else drawSegment(ctx, event.from, event.to, event.color, event.size);
+    }
+    applied.current = events.length;
+  }, [events]);
+  return <article className="live-card"><div><b>{name}</b><span>● 描いている…</span></div><canvas ref={canvasRef} width={900} height={620} aria-label={`${name}のライブお絵描き`} /></article>;
+}
+
+function LivePreviewGrid({ game, me, events, status }: { game: Game; me: string; events: DrawEvent[]; status: "ready" | "connecting" | "unavailable" }) {
+  const opponents = game.players.filter(player => player.active && player.id !== me);
+  if (opponents.length === 0) return null;
+  return <section className="live-previews"><div className="live-heading"><h2>👀 みんなの絵をのぞき見！</h2><span className={status === "ready" ? "live-status ready" : "live-status"}>{status === "ready" ? "● ライブ接続中" : status === "connecting" ? "接続中…" : "ライブ接続を設定してください"}</span></div><div className="live-grid">{opponents.map(player => <LivePreview key={player.id} name={player.name} events={events.filter(event => event.playerId === player.id)} />)}</div></section>;
 }
 
 function SetupScreen({ onCreate, onJoin }: { onCreate: (setup: Setup) => void; onJoin: (id: string, name: string) => void }) {
@@ -31,6 +102,7 @@ function SetupScreen({ onCreate, onJoin }: { onCreate: (setup: Setup) => void; o
 
 export default function Home() {
   const [game, setGame] = useState<Game | null>(null); const [me, setMe] = useState<string>(""); const [seconds, setSeconds] = useState(90); const [notice, setNotice] = useState("");
+  const { events: liveEvents, send: sendDrawEvent, status: liveStatus } = useLiveDrawings(game, me);
   const save = useCallback((next: Game) => { setGame(next); persist(next); void fetch("/api/game", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(next) }); }, []);
   useEffect(() => {
     const fromUrl = new URLSearchParams(window.location.search).get("room");
@@ -71,7 +143,7 @@ export default function Home() {
   const round = game.rounds.at(-1); const isHost = me === game.hostId; const active = game.players.filter(p => p.active); const player = game.players.find(p => p.id === me);
   return <main className="game"><header><a className="brand" href="/">🎨 おえかきバトル</a><div className="room">ROOM <b>{game.id}</b></div><div className="score-pill">🏅 {player?.score ?? 0} pt</div></header>{notice && <div className="toast">{notice}<button onClick={() => setNotice("")}>×</button></div>}
     {game.phase === "lobby" && <section className="lobby panel"><p className="eyebrow">{game.judgingMode === "ai" ? "🤖 AI採点モード" : "🗳️ みんなで投票モード"}</p><h1>みんなを待っています！</h1><p>この5桁のルームIDを友だちに伝えてください。</p><div className="room-code"><strong>{game.id}</strong><span>参加する人は初期画面で入力</span></div><div className="players">{game.players.map((p, i) => <div className="player" key={p.id}><span className={`avatar a${i % 5}`}>{p.name.slice(0, 1)}</span>{p.name}{p.id === game.hostId && <b>ホスト</b>}</div>)}</div>{isHost && <><button className="secondary" onClick={addDemoFriend}>＋ デモ参加者を追加</button><button className="primary huge" onClick={start}>バトル開始！</button></>} {!isHost && <p className="waiting">ホストが開始するのを待っています…</p>}</section>}
-    {game.phase === "drawing" && round && <section><div className="round-head"><div><span>ROUND {round.number} / 5</span><h1>お題: <em>{round.prompt}</em></h1></div><div className={`timer ${seconds <= 10 ? "urgent" : ""}`}>⏱ {String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}</div></div>{round.artworks.some(a => a.playerId === me) ? <div className="submitted panel"><h2>提出しました！</h2><p>{round.artworks.length} / {active.length} 人が提出済みです。</p></div> : <Canvas onSubmit={submit} expired={seconds <= 0} />}</section>}
+    {game.phase === "drawing" && round && <section><div className="round-head"><div><span>ROUND {round.number} / 5</span><h1>お題: <em>{round.prompt}</em></h1></div><div className={`timer ${seconds <= 10 ? "urgent" : ""}`}>⏱ {String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}</div></div><div className="drawing-layout"><div>{round.artworks.some(a => a.playerId === me) ? <div className="submitted panel"><h2>提出しました！</h2><p>{round.artworks.length} / {active.length} 人が提出済みです。</p></div> : <Canvas onSubmit={submit} onDraw={sendDrawEvent} expired={seconds <= 0} />}</div><LivePreviewGrid game={game} me={me} events={liveEvents} status={liveStatus} /></div></section>}
     {game.phase === "voting" && round && <section className="vote"><div className="round-head"><div><span>ROUND {round.number} / 5</span><h1>好きな絵に <em>1票</em>！</h1></div><p>自分の絵には投票できません</p></div><ArtworkGrid game={game} round={round} me={me} onVote={vote} /><button className="secondary abstain" onClick={() => vote(null)}>今回は投票しない</button></section>}
     {(game.phase === "results" || game.phase === "finished") && round && <section className="results"><div className="round-head"><div><span>{game.phase === "finished" ? "FINAL RESULT" : `ROUND ${round.number} RESULT`}</span><h1>{game.phase === "finished" ? "🎉 優勝者の発表！" : "結果発表！"}</h1></div></div><div className="ranking panel"><h2>🏆 総合ランキング</h2>{[...game.players].sort((a,b) => b.score-a.score).map((p, i) => <div key={p.id} className="rank-row"><strong>{i + 1}</strong><span>{p.name}</span><b>{p.score} pt</b></div>)}</div><ArtworkGrid game={game} round={round} me={me} />{game.phase === "results" && isHost && <button className="primary huge" onClick={nextRound}>つぎのラウンドへ →</button>}{game.phase === "finished" && isHost && <div className="final-actions"><button className="primary" onClick={playAgain}>同じメンバーでもう一度遊ぶ</button><button className="secondary" onClick={finishGame}>終了する</button></div>}</section>}
   </main>;
