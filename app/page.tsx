@@ -51,12 +51,15 @@ function makeRoundSchedule(seconds: number) {
     roundEndsAt: new Date(start + seconds * 1000).toISOString(),
   };
 }
+class RoomDeletedError extends Error {}
+
 async function fetchRoom(id: string, since?: string): Promise<Game | null> {
   const query = new URLSearchParams({ id });
   if (since) query.set("since", since);
   const response = await fetch(`/api/game?${query.toString()}`, {
     cache: "no-store",
   });
+  if (response.status === 404) throw new RoomDeletedError();
   if (response.status === 204 || !response.ok) return null;
   return (await response.json()).game as Game;
 }
@@ -484,6 +487,14 @@ export default function Home() {
   const gameRef = useRef<Game | null>(null);
   const savingRef = useRef(false);
   const latestSaveRef = useRef(0);
+  const returnToSetup = useCallback((message?: string) => {
+    localStorage.removeItem(STORAGE);
+    localStorage.removeItem("art-battle:me");
+    history.replaceState(null, "", window.location.pathname);
+    setGame(null);
+    setMe("");
+    if (message) setNotice(message);
+  }, []);
   useEffect(() => {
     gameRef.current = game;
   }, [game]);
@@ -524,13 +535,17 @@ export default function Home() {
       setGame(existing);
       setMe(localStorage.getItem("art-battle:me") || existing.hostId);
     }
-    void fetchRoom(fromUrl).then((remote) => {
-      if (remote) {
-        setGame(remote);
-        setMe(localStorage.getItem("art-battle:me") || remote.hostId);
-      }
-    });
-  }, []);
+    void fetchRoom(fromUrl)
+      .then((remote) => {
+        if (remote) {
+          setGame(remote);
+          setMe(localStorage.getItem("art-battle:me") || remote.hostId);
+        }
+      })
+      .catch((error) => {
+        if (error instanceof RoomDeletedError) returnToSetup("このゲームは終了しました。");
+      });
+  }, [returnToSetup]);
   useEffect(() => {
     if (!game?.id) return;
     let cancelled = false;
@@ -544,6 +559,12 @@ export default function Home() {
             persist(remote);
           }
         }
+      } catch (error) {
+        if (error instanceof RoomDeletedError) {
+          cancelled = true;
+          returnToSetup("ホストがゲームを終了しました。");
+          return;
+        }
       } finally {
         if (!cancelled) timeout = window.setTimeout(poll, 1000);
       }
@@ -553,7 +574,7 @@ export default function Home() {
       cancelled = true;
       window.clearTimeout(timeout);
     };
-  }, [game?.id]);
+  }, [game?.id, returnToSetup]);
   useEffect(() => {
     if (!game || game.phase !== "drawing") return;
     const timer = window.setInterval(() => setClock(Date.now()), 250);
@@ -834,11 +855,7 @@ export default function Home() {
         return;
       }
     }
-    localStorage.removeItem(STORAGE);
-    localStorage.removeItem("art-battle:me");
-    history.replaceState(null, "", window.location.pathname);
-    setGame(null);
-    setMe("");
+    returnToSetup();
   };
   const addDemoFriend = () => {
     if (!game || game.players.length >= 8) return;
