@@ -43,7 +43,14 @@ function makeRoomCode() {
   crypto.getRandomValues(value);
   return String(10000 + (value[0] % 90000));
 }
-function makePromptDeck(count: number) { const deck = [...PROMPTS]; for (let index = deck.length - 1; index > 0; index -= 1) { const swap = crypto.getRandomValues(new Uint32Array(1))[0] % (index + 1); [deck[index], deck[swap]] = [deck[swap], deck[index]]; } return deck.slice(0, count); }
+function makePromptDeck(count: number) {
+  const deck = [...PROMPTS];
+  for (let index = deck.length - 1; index > 0; index -= 1) {
+    const swap = crypto.getRandomValues(new Uint32Array(1))[0] % (index + 1);
+    [deck[index], deck[swap]] = [deck[swap], deck[index]];
+  }
+  return deck.slice(0, count);
+}
 function makeRoundSchedule(seconds: number) {
   const start = Date.now() + 3500;
   return {
@@ -399,9 +406,8 @@ function SetupScreen({
         <br />
         <span>バトル!</span>
       </div>
-      <p className="tagline">真の画伯は誰でしょう？</p>
+      <p className="tagline">真の画伯は誰だ！？</p>
       <section className="panel setup">
-
         <details className="rules-accordion">
           <summary>ルールを決める</summary>
           <div className="rule-settings">
@@ -448,12 +454,6 @@ function SetupScreen({
                 </button>
               ))}
             </div>
-            <div className="rules-copy">
-              <p>お題を見て、選んだ時間内に絵を描いて提出します。</p>
-              <p>設定はルーム作成者が決め、ゲーム開始後は変更できません。</p>
-              <p>AI採点では「お題らしさ」と「完成度」で順位を決めます。みんなで投票では、自分以外の作品に1票、または投票しないことを選べます。</p>
-              <p>各ラウンドは1位5点、2位3点、3位1点。最終ラウンド後、合計点が最も高い人の優勝です。</p>
-            </div>
           </div>
         </details>
         <label className="action-name">
@@ -468,7 +468,14 @@ function SetupScreen({
         <button
           className="primary"
           disabled={!createName.trim()}
-          onClick={() => onCreate({ name: createName.trim(), mode, roundSeconds, totalRounds })}
+          onClick={() =>
+            onCreate({
+              name: createName.trim(),
+              mode,
+              roundSeconds,
+              totalRounds,
+            })
+          }
         >
           ルームをつくる
         </button>
@@ -492,9 +499,10 @@ function SetupScreen({
             参加する
           </button>
         </div>
-
       </section>
-      <p className="hint">1〜8人 / 1・3・5・10ラウンド / 10・30・90・180秒から選択</p>
+      <p className="hint">
+        1〜8人 / 1・3・5・10ラウンド / 10・30・90・180秒から選択
+      </p>
     </main>
   );
 }
@@ -564,7 +572,8 @@ export default function Home() {
         }
       })
       .catch((error) => {
-        if (error instanceof RoomDeletedError) returnToSetup("このゲームは終了しました。");
+        if (error instanceof RoomDeletedError)
+          returnToSetup("このゲームは終了しました。");
       });
   }, [returnToSetup]);
   useEffect(() => {
@@ -662,7 +671,13 @@ export default function Home() {
       ...game,
       roundSeconds: game.roundSeconds ?? 90,
       phase: "drawing" as const,
-      rounds: [{ number: 1, prompt: game.promptDeck?.[0] ?? PROMPTS[game.promptIndex], artworks: [] }],
+      rounds: [
+        {
+          number: 1,
+          prompt: game.promptDeck?.[0] ?? PROMPTS[game.promptIndex],
+          artworks: [],
+        },
+      ],
       ...makeRoundSchedule(game.roundSeconds ?? 90),
     };
     save(next);
@@ -838,7 +853,9 @@ export default function Home() {
         ...game.rounds,
         {
           number,
-          prompt: game.promptDeck?.[number - 1] ?? PROMPTS[(game.promptIndex + 1) % PROMPTS.length],
+          prompt:
+            game.promptDeck?.[number - 1] ??
+            PROMPTS[(game.promptIndex + 1) % PROMPTS.length],
           artworks: [],
         },
       ],
@@ -859,7 +876,13 @@ export default function Home() {
         active: true,
       })),
       promptDeck,
-      rounds: [{ number: 1, prompt: promptDeck[0] ?? PROMPTS[promptIndex], artworks: [] }],
+      rounds: [
+        {
+          number: 1,
+          prompt: promptDeck[0] ?? PROMPTS[promptIndex],
+          artworks: [],
+        },
+      ],
       ...makeRoundSchedule(game.roundSeconds ?? 90),
     };
     save(next);
@@ -948,6 +971,9 @@ export default function Home() {
               <button className="primary huge" onClick={start}>
                 バトル開始！
               </button>
+              <button className="secondary lobby-back" onClick={finishGame}>
+                もどる
+              </button>
             </>
           )}{" "}
           {!isHost && (
@@ -959,7 +985,9 @@ export default function Home() {
         <section>
           <div className="round-head">
             <div>
-              <span>ROUND {round.number} / {game.totalRounds ?? 5}</span>
+              <span>
+                ROUND {round.number} / {game.totalRounds ?? 5}
+              </span>
               <h1>
                 お題: <em>{round.prompt}</em>
               </h1>
@@ -1004,7 +1032,9 @@ export default function Home() {
         <section className="vote">
           <div className="round-head">
             <div>
-              <span>ROUND {round.number} / {game.totalRounds ?? 5}</span>
+              <span>
+                ROUND {round.number} / {game.totalRounds ?? 5}
+              </span>
               <h1>
                 好きな絵に <em>1票</em>！
               </h1>
