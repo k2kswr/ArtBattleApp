@@ -402,49 +402,60 @@ function SetupScreen({
       <p className="tagline">真の画伯は誰でしょう？</p>
       <section className="panel setup">
 
-        <p className="eyebrow">採点方法をえらぶ</p>
-        <div className="mode-grid">
-          <button
-            className={mode === "player_vote" ? "mode chosen" : "mode"}
-            onClick={() => setMode("player_vote")}
-          >
-            <span>🗳️</span>
-            <strong>みんなで投票</strong>
-            <small>一番上手なひとに投票しよう！</small>
-          </button>
-          <button
-            className={mode === "ai" ? "mode chosen" : "mode"}
-            onClick={() => setMode("ai")}
-          >
-            <span>🤖</span>
-            <strong>AI採点</strong>
-            <small>※有料のため開発者にお願いしよう</small>
-          </button>
-        </div>
-        <p className="eyebrow">描く時間をえらぶ</p>
-        <div className="time-grid">
-          {([10, 30, 90, 180] as const).map((seconds) => (
-            <button
-              key={seconds}
-              className={roundSeconds === seconds ? "time chosen" : "time"}
-              onClick={() => setRoundSeconds(seconds)}
-            >
-              {seconds}秒
-            </button>
-          ))}
-        </div>
-        <p className="eyebrow">ラウンド数をえらぶ</p>
-        <div className="time-grid">
-          {([1, 3, 5, 10] as const).map((count) => (
-            <button
-              key={count}
-              className={totalRounds === count ? "time chosen" : "time"}
-              onClick={() => setTotalRounds(count)}
-            >
-              {count}ラウンド
-            </button>
-          ))}
-        </div>
+        <details className="rules-accordion">
+          <summary>ルールを決める</summary>
+          <div className="rule-settings">
+            <p className="eyebrow">採点方法をえらぶ</p>
+            <div className="mode-grid">
+              <button
+                className={mode === "player_vote" ? "mode chosen" : "mode"}
+                onClick={() => setMode("player_vote")}
+              >
+                <span>🗳️</span>
+                <strong>みんなで投票</strong>
+                <small>一番上手なひとに投票しよう！</small>
+              </button>
+              <button
+                className={mode === "ai" ? "mode chosen" : "mode"}
+                onClick={() => setMode("ai")}
+              >
+                <span>🤖</span>
+                <strong>AI採点</strong>
+                <small>※有料のため開発者にお願いしよう</small>
+              </button>
+            </div>
+            <p className="eyebrow">描く時間をえらぶ</p>
+            <div className="time-grid">
+              {([10, 30, 90, 180] as const).map((seconds) => (
+                <button
+                  key={seconds}
+                  className={roundSeconds === seconds ? "time chosen" : "time"}
+                  onClick={() => setRoundSeconds(seconds)}
+                >
+                  {seconds}秒
+                </button>
+              ))}
+            </div>
+            <p className="eyebrow">ラウンド数をえらぶ</p>
+            <div className="time-grid">
+              {([1, 3, 5, 10] as const).map((count) => (
+                <button
+                  key={count}
+                  className={totalRounds === count ? "time chosen" : "time"}
+                  onClick={() => setTotalRounds(count)}
+                >
+                  {count}ラウンド
+                </button>
+              ))}
+            </div>
+            <div className="rules-copy">
+              <p>お題を見て、選んだ時間内に絵を描いて提出します。</p>
+              <p>設定はルーム作成者が決め、ゲーム開始後は変更できません。</p>
+              <p>AI採点では「お題らしさ」と「完成度」で順位を決めます。みんなで投票では、自分以外の作品に1票、または投票しないことを選べます。</p>
+              <p>各ラウンドは1位5点、2位3点、3位1点。最終ラウンド後、合計点が最も高い人の優勝です。</p>
+            </div>
+          </div>
+        </details>
         <label className="action-name">
           ルーム作成者のニックネーム
           <input
@@ -481,15 +492,7 @@ function SetupScreen({
             参加する
           </button>
         </div>
-        <details className="rules-accordion">
-          <summary>ルールを決める</summary>
-          <div>
-            <p>お題を見て、選んだ時間内に絵を描いて提出します。</p>
-            <p>採点方法・描く時間・ラウンド数は、ルーム作成者が決めます。ゲーム開始後は変更できません。</p>
-            <p>AI採点では「お題らしさ」と「完成度」で順位を決めます。みんなで投票では、自分以外の作品に1票、または投票しないことを選べます。</p>
-            <p>各ラウンドは1位5点、2位3点、3位1点。最終ラウンド後、合計点が最も高い人の優勝です。</p>
-          </div>
-        </details>
+
       </section>
       <p className="hint">1〜8人 / 1・3・5・10ラウンド / 10・30・90・180秒から選択</p>
     </main>
