@@ -3,7 +3,7 @@ export type Phase = "lobby" | "drawing" | "voting" | "results" | "finished";
 export type Player = { id: string; name: string; score: number; active: boolean };
 export type Artwork = { playerId: string; image: string; aiScore?: number; comment?: string; votes?: number; rank?: number; points?: number };
 export type Round = { number: number; prompt: string; artworks: Artwork[] };
-export type Game = { id: string; judgingMode: JudgingMode; roundSeconds: 10 | 30 | 90 | 180; hostId: string; phase: Phase; players: Player[]; rounds: Round[]; promptIndex: number; createdAt: string; roundEndsAt?: string };
+export type Game = { id: string; judgingMode: JudgingMode; roundSeconds: 10 | 30 | 90 | 180; hostId: string; phase: Phase; players: Player[]; rounds: Round[]; promptIndex: number; createdAt: string; roundStartsAt?: string; roundEndsAt?: string };
 
 export const PROMPTS = ["ドラゴン", "宇宙を旅するねこ", "虹色のペンギン", "お菓子の家", "空飛ぶくじら", "ロボットのお花屋さん", "雲の上の遊園地", "魔法のきのこ", "海底のお城", "月でピクニック"];
 export const POINTS: Record<number, number> = { 1: 5, 2: 3, 3: 1 };

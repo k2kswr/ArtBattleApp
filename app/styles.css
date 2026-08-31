@@ -22,3 +22,5 @@
 
 .vote-waiting { margin: 22px auto 0; text-align: center; font-weight: 900; color: #fa5c7e; }
 .vote-waiting span { color: #765b94; font-size: 14px; }
+
+.start-countdown { margin: 0; padding: 70px 24px; text-align: center; }
