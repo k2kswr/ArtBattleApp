@@ -386,7 +386,8 @@ function SetupScreen({
   onCreate: (setup: Setup) => void;
   onJoin: (id: string, name: string) => void;
 }) {
-  const [name, setName] = useState("");
+  const [createName, setCreateName] = useState("");
+  const [joinName, setJoinName] = useState("");
   const [mode, setMode] = useState<JudgingMode>("player_vote");
   const [roundSeconds, setRoundSeconds] = useState<10 | 30 | 90 | 180>(90);
   const [totalRounds, setTotalRounds] = useState<1 | 3 | 5 | 10>(5);
@@ -400,15 +401,7 @@ function SetupScreen({
       </div>
       <p className="tagline">真の画伯は誰でしょう？</p>
       <section className="panel setup">
-        <label>
-          あなたのニックネーム
-          <input
-            maxLength={16}
-            placeholder="例：みんじゅ"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </label>
+
         <p className="eyebrow">採点方法をえらぶ</p>
         <div className="mode-grid">
           <button
@@ -451,27 +444,52 @@ function SetupScreen({
               {count}ラウンド
             </button>
           ))}
-        </div>        <button
+        </div>
+        <label className="action-name">
+          ルーム作成者のニックネーム
+          <input
+            maxLength={16}
+            placeholder="例：みんじゅ"
+            value={createName}
+            onChange={(e) => setCreateName(e.target.value)}
+          />
+        </label>
+        <button
           className="primary"
-          disabled={!name.trim()}
-          onClick={() => onCreate({ name: name.trim(), mode, roundSeconds, totalRounds })}
+          disabled={!createName.trim()}
+          onClick={() => onCreate({ name: createName.trim(), mode, roundSeconds, totalRounds })}
         >
           ルームをつくる
         </button>
         <div className="divider">または</div>
         <div className="join">
           <input
+            maxLength={16}
+            placeholder="ニックネーム"
+            value={joinName}
+            onChange={(e) => setJoinName(e.target.value)}
+          />
+          <input
             placeholder="ルームID"
             value={room}
             onChange={(e) => setRoom(e.target.value)}
           />
           <button
-            disabled={!name.trim() || !room.trim()}
-            onClick={() => onJoin(room.trim(), name.trim())}
+            disabled={!joinName.trim() || !room.trim()}
+            onClick={() => onJoin(room.trim(), joinName.trim())}
           >
             参加する
           </button>
         </div>
+        <details className="rules-accordion">
+          <summary>ルールを決める</summary>
+          <div>
+            <p>お題を見て、選んだ時間内に絵を描いて提出します。</p>
+            <p>採点方法・描く時間・ラウンド数は、ルーム作成者が決めます。ゲーム開始後は変更できません。</p>
+            <p>AI採点では「お題らしさ」と「完成度」で順位を決めます。みんなで投票では、自分以外の作品に1票、または投票しないことを選べます。</p>
+            <p>各ラウンドは1位5点、2位3点、3位1点。最終ラウンド後、合計点が最も高い人の優勝です。</p>
+          </div>
+        </details>
       </section>
       <p className="hint">1〜8人 / 1・3・5・10ラウンド / 10・30・90・180秒から選択</p>
     </main>
