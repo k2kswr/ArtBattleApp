@@ -17,3 +17,5 @@
 .room-code span { font-size: 12px; font-weight: 800; }
 @media(max-width:900px) { .drawing-layout { grid-template-columns: 1fr; } .live-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); } }
 @media(max-width:600px) { .live-heading h2 { font-size: 15px; } .live-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .live-card > div { font-size: 12px; padding: 7px; } .live-card > div span { display: none; } }
+
+.abstain { display: block; margin: 36px auto 0; }
