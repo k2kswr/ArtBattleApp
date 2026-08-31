@@ -1,0 +1,7 @@
+allowBuilds:
+  # Next.js/Vitest rely on esbuild and the Next image pipeline uses sharp.
+  # Pinning approval here keeps `pnpm run dev` non-interactive on new machines.
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+confirmModulesPurge: false
