@@ -17,14 +17,14 @@
 
 ## 技術スタック
 
-| 分類 | 技術 |
-| --- | --- |
-| フロントエンド | Next.js 16 / React 19 / TypeScript |
-| 描画 | HTML Canvas API |
-| リアルタイム通信・DB | Supabase Realtime / PostgreSQL |
-| AI | OpenAI Responses API |
-| ホスティング | Vercel |
-| テスト | Vitest |
+| 分類 | 技術 | 採用理由 |
+| --- | --- | --- |
+| フロントエンド | Next.js 16 / React 19 / TypeScript | UIとAPIを同一プロジェクトで型安全に開発できるため |
+| 描画 | HTML Canvas API | ブラウザ標準で軽量な自由描画を実現できるため |
+| リアルタイム通信・DB | Supabase Realtime / PostgreSQL | 描画同期とルーム状態の永続化を素早く構築できるため |
+| AI | OpenAI Responses API | 画像を入力し、構造化JSONで採点結果を取得できるため |
+| ホスティング | Vercel | Next.jsのデプロイと環境変数管理を簡単に行えるため |
+| テスト | Vitest | TypeScriptのロジックを高速に検証できるため |
 
 ## 工夫した点
 
