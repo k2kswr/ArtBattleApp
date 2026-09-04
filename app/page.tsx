@@ -474,7 +474,7 @@ function SetupScreen({
           </div>
         </details>
         <label className="action-name">
-          あなたのニックネーム（必須）
+          作成者名
           <input
             maxLength={16}
             placeholder="例：おえかキング"
@@ -494,7 +494,7 @@ function SetupScreen({
         <div className="divider">または</div>
         <div className="join">
           <label className="join-field">
-            あなたのニックネーム（必須）
+            参加者名
             <input
               maxLength={16}
               placeholder="例：おえかキング"
