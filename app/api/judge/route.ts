@@ -4,6 +4,7 @@ type JudgeInput = { prompt: string; artworks: { playerId: string; image: string 
 type GeminiScore = { index: number; score: number; comment: string };
 
 const model = "gemini-2.5-flash-lite";
+const blankImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 const scoreSchema = {
   type: "object",
   properties: {
@@ -24,6 +25,7 @@ const scoreSchema = {
 };
 
 function toInlineData(image: string) {
+  if (image.startsWith("data:image/svg+xml,")) return toInlineData(blankImage);
   const matched = /^data:([^;]+);base64,(.+)$/.exec(image);
   return matched ? { inlineData: { mimeType: matched[1], data: matched[2] } } : null;
 }

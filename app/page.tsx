@@ -746,7 +746,7 @@ export default function Home() {
     );
     if (missing.length === 0) return;
     const blank =
-      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='620'/%3E";
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
     const expired = {
       ...game,
       rounds: [
