@@ -734,10 +734,14 @@ export default function Home() {
   };
   useEffect(() => {
     if (!game || game.phase !== "drawing" || seconds > 0) return;
+    // Each device submits its own canvas at the bell. Only the host fills in
+    // truly absent players, after a short grace period for those requests.
+    if (me !== game.hostId) return;
+    const endsAt = new Date(game.roundEndsAt ?? 0).getTime();
+    if (!endsAt || clock < endsAt + 5_000) return;
     const round = game.rounds.at(-1)!;
-    // Canvas submits the local artwork first. On the following state update,
-    // players who did not submit before the bell receive a blank entry so a
-    // round can never remain stuck at 00:00.
+    // Players who are disconnected or never opened the drawing canvas receive
+    // a blank entry so a round can never remain stuck at 00:00.
     if (round.artworks.length === 0) return;
     const missing = game.players.filter(
       (player) =>
@@ -765,7 +769,7 @@ export default function Home() {
       phase: expired.judgingMode === "ai" ? "results" : "voting",
     });
     if (expired.judgingMode === "ai") void judge(expired);
-  }, [game, seconds]);
+  }, [clock, game, me, seconds]);
   const judge = async (pending: Game) => {
     try {
       const round = pending.rounds.at(-1)!;
