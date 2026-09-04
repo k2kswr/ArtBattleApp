@@ -399,6 +399,23 @@ function SetupScreen({
   const [roundSeconds, setRoundSeconds] = useState<10 | 30 | 90 | 180>(90);
   const [totalRounds, setTotalRounds] = useState<1 | 3 | 5 | 10>(5);
   const [room, setRoom] = useState("");
+  const [createNameError, setCreateNameError] = useState(false);
+  const [joinNameError, setJoinNameError] = useState(false);
+  const [roomError, setRoomError] = useState(false);
+  const handleCreate = () => {
+    const missingName = !createName.trim();
+    setCreateNameError(missingName);
+    if (missingName) return;
+    onCreate({ name: createName.trim(), mode, roundSeconds, totalRounds });
+  };
+  const handleJoin = () => {
+    const missingName = !joinName.trim();
+    const missingRoom = !room.trim();
+    setJoinNameError(missingName);
+    setRoomError(missingRoom);
+    if (missingName || missingRoom) return;
+    onJoin(room.trim(), joinName.trim());
+  };
   return (
     <main className="landing">
       <div className="logo">
@@ -457,47 +474,55 @@ function SetupScreen({
           </div>
         </details>
         <label className="action-name">
-          ルーム作成者のニックネーム
+          あなたのニックネーム（必須）
           <input
             maxLength={16}
             placeholder="例：おえかキング"
             value={createName}
-            onChange={(e) => setCreateName(e.target.value)}
+            aria-invalid={createNameError}
+            className={createNameError ? "input-error" : undefined}
+            onChange={(e) => {
+              setCreateName(e.target.value);
+              setCreateNameError(false);
+            }}
           />
+          {createNameError && <span className="field-error" role="alert">ニックネームを入力してください</span>}
         </label>
-        <button
-          className="primary"
-          disabled={!createName.trim()}
-          onClick={() =>
-            onCreate({
-              name: createName.trim(),
-              mode,
-              roundSeconds,
-              totalRounds,
-            })
-          }
-        >
+        <button className="primary" onClick={handleCreate}>
           ルームをつくる
         </button>
         <div className="divider">または</div>
         <div className="join">
-          <input
-            maxLength={16}
-            placeholder="ニックネーム"
-            value={joinName}
-            onChange={(e) => setJoinName(e.target.value)}
-          />
-          <input
-            placeholder="ルームID"
-            value={room}
-            onChange={(e) => setRoom(e.target.value)}
-          />
-          <button
-            disabled={!joinName.trim() || !room.trim()}
-            onClick={() => onJoin(room.trim(), joinName.trim())}
-          >
-            参加する
-          </button>
+          <label className="join-field">
+            あなたのニックネーム（必須）
+            <input
+              maxLength={16}
+              placeholder="例：おえかキング"
+              value={joinName}
+              aria-invalid={joinNameError}
+              className={joinNameError ? "input-error" : undefined}
+              onChange={(e) => {
+                setJoinName(e.target.value);
+                setJoinNameError(false);
+              }}
+            />
+            {joinNameError && <span className="field-error" role="alert">ニックネームを入力してください</span>}
+          </label>
+          <label className="join-field">
+            ルームID（必須）
+            <input
+              placeholder="例：12345"
+              value={room}
+              aria-invalid={roomError}
+              className={roomError ? "input-error" : undefined}
+              onChange={(e) => {
+                setRoom(e.target.value);
+                setRoomError(false);
+              }}
+            />
+            {roomError && <span className="field-error" role="alert">ルームIDを入力してください</span>}
+          </label>
+          <button onClick={handleJoin}>参加する</button>
         </div>
       </section>
       <p className="hint">
