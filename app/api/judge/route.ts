@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 type JudgeInput = { prompt: string; artworks: { playerId: string; image: string }[] };
 type GeminiScore = { index: number; score: number; comment: string };
 
-const model = "gemini-2.5-flash-lite";
+const model = "gemini-3.1-flash-lite";
 const blankImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 const scoreSchema = {
   type: "object",
