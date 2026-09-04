@@ -12,14 +12,14 @@
 - ペン・色・太さ・消しゴムを備えたCanvas描画
 - Supabase Realtimeによる、相手の描画中プレビュー
 - Gemini APIによる画像採点（点数・短評）
-- API不要でも遊べる参加者投票モードと棄権機能
-- 順位ポイント（5 / 3 / 1点）、最終ランキング、再戦
+- API不要でも遊べる参加者投票モード
+- 順位ポイント、最終ランキング、再戦
 
 ## 技術スタック
 
 | 分類 | 技術 | 採用理由 |
 | --- | --- | --- |
-| フロントエンド | Next.js 16 / React 19 / TypeScript | UIとAPIを同一プロジェクトで型安全に開発できるため |
+| フロントエンド | Next.js / React / TypeScript | UIとAPIを同一プロジェクトで型安全に開発できるため |
 | 描画 | HTML Canvas API | ブラウザ標準で軽量な自由描画を実現できるため |
 | リアルタイム通信・DB | Supabase Realtime / PostgreSQL | 描画同期とルーム状態の永続化を素早く構築できるため |
 | AI | Gemini API（Gemini 2.5 Flash-Lite） | 無料枠で画像を入力し、構造化JSONで採点結果を取得できるため |

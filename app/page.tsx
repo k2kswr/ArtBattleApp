@@ -427,7 +427,7 @@ function SetupScreen({
               >
                 <span>🤖</span>
                 <strong>AI採点</strong>
-                <small>※有料のため開発者にお願いしよう</small>
+                <small>※回数制限があります。</small>
               </button>
             </div>
             <p className="eyebrow">描く時間をえらぶ</p>
@@ -460,7 +460,7 @@ function SetupScreen({
           ルーム作成者のニックネーム
           <input
             maxLength={16}
-            placeholder="例：みんじゅ"
+            placeholder="例：おえかキング"
             value={createName}
             onChange={(e) => setCreateName(e.target.value)}
           />
