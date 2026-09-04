@@ -11,7 +11,7 @@
 - 40種類の一単語お題を重複なしでランダム出題
 - ペン・色・太さ・消しゴムを備えたCanvas描画
 - Supabase Realtimeによる、相手の描画中プレビュー
-- OpenAI Responses APIによる画像採点（点数・短評）
+- Gemini APIによる画像採点（点数・短評）
 - API不要でも遊べる参加者投票モードと棄権機能
 - 順位ポイント（5 / 3 / 1点）、最終ランキング、再戦
 
@@ -22,7 +22,7 @@
 | フロントエンド | Next.js 16 / React 19 / TypeScript | UIとAPIを同一プロジェクトで型安全に開発できるため |
 | 描画 | HTML Canvas API | ブラウザ標準で軽量な自由描画を実現できるため |
 | リアルタイム通信・DB | Supabase Realtime / PostgreSQL | 描画同期とルーム状態の永続化を素早く構築できるため |
-| AI | OpenAI Responses API | 画像を入力し、構造化JSONで採点結果を取得できるため |
+| AI | Gemini API（Gemini 2.5 Flash-Lite） | 無料枠で画像を入力し、構造化JSONで採点結果を取得できるため |
 | ホスティング | Vercel | Next.jsのデプロイと環境変数管理を簡単に行えるため |
 | テスト | Vitest | TypeScriptのロジックを高速に検証できるため |
 
@@ -38,7 +38,7 @@
 ```text
 Browser (Next.js / React)
   ├─ Serverless API (Vercel) ── Supabase PostgreSQL
-  ├─ OpenAI Responses API（AI採点時のみ）
+  ├─ Gemini API（AI採点時のみ）
   └─ Supabase Realtime（描画ライブプレビュー）
 ```
 
